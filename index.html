@@ -4,7 +4,15 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
 <title>공무원연금 개인보정 계산기</title>
+<meta property="og:title" content="공무원연금 개인보정 계산기">
 
+<meta property="og:description" content="생년월일과 임용일을 입력하면 예상 연금, 소득대체율, 평생 총연금, 연금 현재가치를 계산합니다.">
+
+<meta property="og:image" content="https://leekih111111-glitch.github.io/civilservantsright/logo.png">
+
+<meta property="og:url" content="https://leekih111111-glitch.github.io/civilservantsright">
+
+<meta property="og:type" content="website">
 <style>
 body{
     font-family:'Pretendard','Malgun Gothic',sans-serif;
@@ -83,6 +91,18 @@ button{
     border-top:1px solid #d0d7e2;
     padding-top:10px;
 }
+.sharebtn{
+width:100%;
+padding:15px;
+background:#28a745;
+color:white;
+border:none;
+border-radius:14px;
+font-size:16px;
+font-weight:600;
+cursor:pointer;
+margin-top:10px;
+}
 .footer{
     display:flex;
     justify-content:center;
@@ -109,13 +129,13 @@ button{
 <label>3. 개인 평균 기준소득월액 (B값)</label>
 <input type="text" id="salary" inputmode="numeric" placeholder="숫자만 입력">
 <div style="font-size: 12px; color: #666; margin-top: -6px; margin-bottom: 12px; line-height: 1.4;">
-※ 본인의 전 재직기간 평균 소득으로 (지급률-1.0%)
+※ 본인 전 재직기간 평균 소득. (지급률-1.0%)
 </div>
 
 <label>4. 2016년 이후 소득재분배 반영 평균 기준소득월액 (A값)</label>
 <input type="text" id="valA" inputmode="numeric" placeholder="숫자만 입력">
 <div style="font-size: 12px; color: #666; margin-top: -6px; margin-bottom: 12px; line-height: 1.4;">
-※ 퇴직 전 3년간 전체공무원 기준소득월액 평균액으로 1.0%
+※ 퇴직 전 3년간 전체공무원 기준소득월액 평균액. (1.0%)
 </div>
 
 <label>5. 조회 시점 퇴직연금 예상액</label>
@@ -134,6 +154,7 @@ button{
 <button onclick="calculate()">계산하기</button>
 
 <div class="result" id="result"></div>
+<button class="sharebtn" onclick="shareResult()">📤 결과 공유하기</button>
 <div class="small">
 ※ 구간별 지급률(2.0%→1.9%→1.7%) 반영<br>
 ※ 2016년 이후 소득재분배 1.0% + 개인소득(차액) 적용<br>
@@ -222,6 +243,21 @@ function getPensionStartAge(appointYear, retireYear){
     }
 
     return 60;
+}
+function shareResult(){
+
+const resultText = document.getElementById("result").innerText;
+
+const message =
+"📊 공무원연금 개인보정 계산 결과\n\n"
++ resultText +
+"\n\n연금 계산기 바로가기\n"
++ "https://leekih111111-glitch.github.io/civilservantsright";
+
+navigator.clipboard.writeText(message)
+.then(()=>{
+    alert("결과가 복사되었습니다. 카톡이나 밴드에 붙여넣기 하세요.");
+});
 }
 
 function calculate(){
