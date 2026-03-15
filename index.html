@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+<title>공무원연금 개인보정 계산기</title>
+
+<style>
+body{
+    font-family:'Pretendard','Malgun Gothic',sans-serif;
+    background:#f2f5f9;
+    margin:0;
+    padding:12px;
+}
+.card{
+    background:white;
+    max-width:520px;
+    margin:auto;
+    padding:20px;
+    border-radius:18px;
+    box-shadow:0 8px 25px rgba(0,0,0,0.08);
+}
+h2{
+    text-align:center;
+    color:#1f4e79;
+    font-size:20px;
+    margin-bottom:20px;
+}
+label{
+    font-weight:600;
+    font-size:14px;
+    display:block;
+    margin-top:12px;
+}
+input,select{
+    width:100%;
+    padding:14px;
+    margin:6px 0 10px 0;
+    border-radius:12px;
+    border:1px solid #d0d7e2;
+    font-size:16px;
+    box-sizing:border-box;
+}
+button{
+    width:100%;
+    padding:15px;
+    background:#1f4e79;
+    color:white;
+    border:none;
+    border-radius:14px;
+    font-size:17px;
+    font-weight:600;
+    cursor:pointer;
+    margin-top:10px;
+}
+.result{
+    margin-top:20px;
+    padding:16px;
+    background:#eef4fb;
+    border-radius:14px;
+    line-height:1.7;
+    font-size:14px;
+}
+.scenario{
+    background:white;
+    margin-top:10px;
+    padding:14px;
+    border-radius:12px;
+    box-shadow:0 4px 12px rgba(0,0,0,0.05);
+}
+.scenario strong{
+    font-size:18px;
+    color:#1f4e79;
+}
+.highlight{
+    color:#d9534f;
+    font-weight:bold;
+}
+.small{
+    font-size:12px;
+    color:#555;
+    margin-top:15px;
+    border-top:1px solid #d0d7e2;
+    padding-top:10px;
+}
+.footer{
+    display:flex;
+    justify-content:center;
+    margin-top:30px;
+}
+
+.footer img{
+    width:150px;
+}
+</style>
+</head>
+
+<body>
+
+<div class="card">
+<h2>📊 공무원연금 개인보정 계산기</h2>
+
+<label>1. 생년월일</label>
+<input type="text" id="birth" inputmode="numeric" maxlength="10" placeholder="1978-09-26">
+
+<label>2. 임용일</label>
+<input type="text" id="appoint" inputmode="numeric" maxlength="10" placeholder="2002-06-18">
+
+<label>3. 개인 평균 기준소득월액 (B값)</label>
+<input type="text" id="salary" inputmode="numeric" placeholder="숫자만 입력">
+<div style="font-size: 12px; color: #666; margin-top: -6px; margin-bottom: 12px; line-height: 1.4;">
+※ 본인의 전 재직기간 평균 소득으로 (지급률-1.0%)만큼의 비중 결정
+</div>
+
+<label>4. 2016년 이후 소득재분배 반영 평균 기준소득월액 (A값)</label>
+<input type="text" id="valA" inputmode="numeric" placeholder="숫자만 입력">
+<div style="font-size: 12px; color: #666; margin-top: -6px; margin-bottom: 12px; line-height: 1.4;">
+※ 퇴직 전 3년간 전체 공무원 기준소득월액 평균액으로 1.0%만큼 소득재분배
+</div>
+
+<label>5. 조회 시점 퇴직연금 예상액</label>
+<input type="text" id="currentPension" inputmode="numeric" placeholder="숫자만 입력">
+
+<label>6. 조기수령 여부</label>
+<select id="early">
+<option value="0">정상수령</option>
+<option value="1">1년 조기 (-5%)</option>
+<option value="2">2년 조기 (-10%)</option>
+<option value="3">3년 조기 (-15%)</option>
+<option value="4">4년 조기 (-20%)</option>
+<option value="5">5년 조기 (-25%)</option>
+</select>
+
+<button onclick="calculate()">계산하기</button>
+
+<div class="result" id="result"></div>
+<div class="small">
+※ 연도별 지급률(2.0→1.9→1.7) 반영<br>
+※ 2010년 이후 소득재분배 1.0% + 개인소득(차액) 적용<br>
+※ 계산식: 현재 연금 + 향후 근무기간 연금 증가분 합산<br>
+※ 퇴직후 연금개시연령까지 물가상승률(2%) 가정치 반영
+</div>
+<div class="footer">
+<img src="logo.png" alt="대한민국공무원노동조합총연맹">
+</div>
+
+</div>
+
+</div>
+
+<script>
+
+// 숫자 콤마
+function formatNumber(el){
+    let v = el.value.replace(/\D/g,'');
+    el.value = v.replace(/\B(?=(\d{3})+(?!\d))/g,",");
+}
+
+// 날짜 자동 하이픈
+function formatDate(el){
+    let v = el.value.replace(/\D/g,'');
+    if(v.length>4 && v.length<=6)
+        el.value = v.slice(0,4)+'-'+v.slice(4);
+    else if(v.length>6)
+        el.value = v.slice(0,4)+'-'+v.slice(4,6)+'-'+v.slice(6,8);
+    else
+        el.value = v;
+}
+
+document.getElementById("birth").addEventListener("input",function(){formatDate(this)});
+document.getElementById("appoint").addEventListener("input",function(){formatDate(this)});
+document.getElementById("salary").addEventListener("input",function(){formatNumber(this)});
+document.getElementById("valA").addEventListener("input",function(){formatNumber(this)});
+document.getElementById("currentPension").addEventListener("input",function(){formatNumber(this)});
+
+
+// 지급개시연령
+function getAccrualRate(year){
+
+    if(year<=2009) return 0.02;
+    if(year<=2015) return 0.019;
+
+    const table={
+        2016:0.01878,
+        2017:0.01856,
+        2018:0.01834,
+        2019:0.01812,
+        2020:0.01790,
+        2021:0.01780,
+        2022:0.01770,
+        2023:0.01760,
+        2024:0.01750,
+        2025:0.01740,
+        2026:0.01736,
+        2027:0.01732,
+        2028:0.01728,
+        2029:0.01724,
+        2030:0.01720,
+        2031:0.01716,
+        2032:0.01712,
+        2033:0.01708,
+        2034:0.01704,
+        2035:0.01700,
+    };
+
+    if(table[year]) return table[year];
+
+    return 0.017;   // 2036 이후 1.7% 고정
+}
+// 지급개시연령
+function getPensionStartAge(appointYear, retireYear){
+
+    if(appointYear >= 1996){
+
+        if(retireYear <= 2021) return 60;
+        if(retireYear <= 2023) return 61;
+        if(retireYear <= 2026) return 62;
+        if(retireYear <= 2029) return 63;
+        if(retireYear <= 2032) return 64;
+
+        return 65;
+    }
+
+    return 60;
+}
+
+function calculate(){
+
+const birthStr=document.getElementById("birth").value;
+const appointStr=document.getElementById("appoint").value;
+
+const salary=parseFloat(document.getElementById("salary").value.replace(/,/g,''))||0;
+const valA=parseFloat(document.getElementById("valA").value.replace(/,/g,''))||0;
+const currentPension=parseFloat(document.getElementById("currentPension").value.replace(/,/g,''))||0;
+const early=parseInt(document.getElementById("early").value);
+
+if(!birthStr||!appointStr||!salary||!valA||!currentPension){
+alert("값을 입력하세요");
+return;
+}
+
+const birth=new Date(birthStr);
+const appoint=new Date(appointStr);
+
+const retireYear=birth.getFullYear()+60;
+const todayYear=new Date().getFullYear();
+
+const normalAge=getPensionStartAge(
+appoint.getFullYear(),
+retireYear
+);
+
+const actualAge=normalAge-early;
+
+const receiveYears=85-actualAge;
+
+const discountRate=0.02;
+
+let html="";
+
+const growthRates=[-0.01,0,0.01];
+
+growthRates.forEach(r=>{
+
+let futureAdd=0;
+
+for(let y=todayYear+1;y<=retireYear;y++){
+
+const rate=getAccrualRate(y);
+
+const yearsAhead = y - todayYear;
+
+const yearlyAdd =
+(valA*Math.pow(1+r,yearsAhead)*0.01)
++
+(salary*(rate-0.01));
+
+futureAdd+=yearlyAdd;
+
+}
+
+let pension=currentPension+futureAdd;
+
+pension*=1-early*0.05;
+
+const pensionAtStart=pension*Math.pow(1.02,(actualAge-60));
+
+const totalLifetime=pensionAtStart*12*receiveYears;
+
+const presentValue=
+pensionAtStart*12*((1-Math.pow(1+discountRate,-receiveYears))/discountRate);
+
+const replacementRate=pensionAtStart/((salary+valA)/2);
+
+html+=`
+<div class="scenario">
+실질임금상승률 ${(r*100).toFixed(1)}% 시나리오<br>
+<strong>${Math.round(pensionAtStart).toLocaleString()} 원</strong><br>
+소득대체율 :
+<strong>${(replacementRate*100).toFixed(1)}%</strong><br>
+85세까지 총연금 :
+<strong>${Math.round(totalLifetime).toLocaleString()} 원</strong><br>
+연금 현재가치 :
+<strong>${Math.round(presentValue).toLocaleString()} 원</strong>
+</div>`;
+
+});
+
+document.getElementById("result").innerHTML=`
+
+지급개시연령: <span class="highlight">${actualAge}세</span>
+${early>0?`(정상 ${normalAge}세)`:''}<br>
+
+${html}
+        <div class="small">
+        실질임금상승률(임금상승률-물가상승률)에 따라 현가화<br>
+        Σ(연도별 기준소득월액×현가율×적용월수)/총월수
+        </div>
+`;
+
+}
+
+</script>
+</body>
+</html>
