@@ -5,6 +5,23 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
 <title>공무원연금 자산관리 계산기</title>
 <style>
+    .navbar {
+    display: flex;
+    justify-content: space-around;
+    background: #1f4e79;
+    padding: 12px 0;
+    border-radius: 14px 14px 0 0;
+    margin-bottom: 15px;
+}
+.navbar a {
+    color: white;
+    text-decoration: none;
+    font-size: 13px;
+    font-weight: 600;
+}
+.navbar a:hover {
+    text-decoration: underline;
+}
 body{ font-family:'Pretendard','Malgun Gothic',sans-serif; background:#f2f5f9; margin:0; padding:12px; }
 .card{ background:white; max-width:520px; margin:auto; padding:20px; border-radius:18px; box-shadow:0 8px 25px rgba(0,0,0,0.08); }
 h2{ text-align:center; color:#1f4e79; font-size:20px; margin-bottom:20px; }
@@ -24,6 +41,12 @@ button{ width:100%; padding:15px; background:#1f4e79; color:white; border:none; 
 
 <body>
 <div class="card">
+    <div class="navbar">
+        <a href="http://www.gnch.or.kr" target="_blank">공노총 홈</a>
+        <a href="https://www.geps.or.kr" target="_blank">연금공단</a> <a href="#" onclick="alert('준비 중인 서비스입니다.')">연금자료</a>
+        <a href="#" onclick="alert('준비 중인 서비스입니다.')">공지사항</a>
+    </div>
+
     <h2>📊 공무원연금 자산관리 계산기</h2>
 
     <label>1. 생년월일</label>
@@ -43,7 +66,7 @@ button{ width:100%; padding:15px; background:#1f4e79; color:white; border:none; 
     ※ 퇴직 전 3년간 전체공무원 기준소득월액 평균액
     </div>
     <label>5. 조회 시점 퇴직연금(월액) 예상액</label>
-    <input type="text" id="currentPension" inputmode="numeric" placeholder="세전,숫자만 입력">
+    <input type="text" id="currentPension" inputmode="numeric" placeholder="10년 미만 재직자는 '0' 입력">
 
     <label>6. 조회 시점 퇴직(연금)일시금</label>
     <input type="text" id="currentLumpSum" inputmode="numeric" placeholder="세전,숫자만 입력">
@@ -115,29 +138,43 @@ function shareResult(){
 }
 
 function calculate(){
-    const birthStr=document.getElementById("birth").value;
-    const appointStr=document.getElementById("appoint").value;
-    let salary=parseFloat(document.getElementById("salary").value.replace(/,/g,''))||0;
-    let valA=parseFloat(document.getElementById("valA").value.replace(/,/g,''))||0;
-    let currentPension=parseFloat(document.getElementById("currentPension").value.replace(/,/g,''))||0;
+    const birthStr = document.getElementById("birth").value;
+    const appointStr = document.getElementById("appoint").value;
+    let salary = parseFloat(document.getElementById("salary").value.replace(/,/g,'')) || 0;
+    let valA = parseFloat(document.getElementById("valA").value.replace(/,/g,'')) || 0;
+    let currentPensionInput = parseFloat(document.getElementById("currentPension").value.replace(/,/g,'')) || 0;
     const currentLumpSum = parseFloat(document.getElementById("currentLumpSum").value.replace(/,/g, '')) || 0;
     const currentBonus = parseFloat(document.getElementById("currentBonus").value.replace(/,/g, '')) || 0;
-    const early=parseInt(document.getElementById("early").value);
+    const early = parseInt(document.getElementById("early").value);
 
-    if(!birthStr||!appointStr){ alert("날짜를 입력하세요."); return; }
+    if(!birthStr || !appointStr){ alert("날짜를 입력하세요."); return; }
 
-    const birth=new Date(birthStr);
-    const appoint=new Date(appointStr);
-    const today=new Date();
+    const birth = new Date(birthStr);
+    const appoint = new Date(appointStr);
+    const today = new Date();
 
-    // 정년 퇴직일 및 재직기간 계산
+    // 1. 재직기간 계산
     const retireDate = new Date(birth.getFullYear() + 60, birth.getMonth(), birth.getDate());
-    const totalServiceMonths = Math.min(432, Math.floor((retireDate - appoint) / (1000 * 60 * 60 * 24 * 30.44))); // 최대 36년(432개월)
+    const totalServiceMonths = Math.min(432, Math.floor((retireDate - appoint) / (1000 * 60 * 60 * 24 * 30.44)));
     const totalServiceYears = totalServiceMonths / 12;
     const currentServiceYears = Math.floor((today - appoint) / (1000 * 60 * 60 * 24 * 30.44)) / 12;
     const remainingYears = Math.max(0, totalServiceYears - currentServiceYears);
 
-    // 정년 시 추정치 계산 보정
+    // 2. [이원화 로직] 10년 기준 수급권 여부 판단
+    let isVested = currentServiceYears >= 10; 
+    let currentPension = currentPensionInput;
+
+    if (currentPension === 0 && currentLumpSum > 0) {
+        if (!isVested) {
+            // [저연차용] 10년 미만은 일시금 대비 연금 효율을 보수적으로 역산 (1/165)
+            currentPension = currentLumpSum / 165;
+        } else {
+            // [고연차용] 10년 이상은 선배님 데이터 기반 정밀 역산 (1/152)
+            currentPension = currentLumpSum / 152;
+        }
+    }
+
+    // 3. 정년 시 추정치 계산
     const futureLumpSum = salary * totalServiceYears * 1.21; 
     const futureBonus = salary * 0.39 * totalServiceYears;
 
@@ -145,14 +182,12 @@ function calculate(){
     const actualAge = normalAge - early;
     const receiveYears = 85 - actualAge;
 
-    let html="";
-    const growthRates=[-0.02, 0, 0.02];
+    let html = "";
+    const growthRates = [-0.02, 0, 0.02];
 
-growthRates.forEach(r => {
+    growthRates.forEach(r => {
         let futureAdd = 0;
         const startYear = today.getFullYear();
-        
-        // 1. 미래 추가분 계산 (복리 적용)
         for (let y = 1; y <= remainingYears; y++) {
             const rate = getAccrualRate(startYear + y);
             const inflatedSalary = salary * Math.pow(1 + r, y);
@@ -160,19 +195,15 @@ growthRates.forEach(r => {
             futureAdd += (inflatedValA * 0.01) + (inflatedSalary * (rate - 0.01));
         }
 
-        // 2. 퇴직 시점(60세) 예상 연금액 (현재가치 기준)
         let pensionAtRetire = (currentPension + futureAdd) * (1 - early * 0.05);
-        
-        // 3. 연금 개시 시점(65세) 가치 보정 
-        // 퇴직 후 개시까지 5년간의 가치 보존을 위해 물가상승률(2%) 반영
         const inflationGap = Math.max(0, normalAge - 60);
         const pensionAtStart = pensionAtRetire * Math.pow(1.02, inflationGap); 
-        
-        // 4. 총액 및 소득대체율 계산
         const totalLifetime = pensionAtStart * 12 * receiveYears;
-        
-        // [중요] 소득대체율은 개시 시점 가치가 아닌 '퇴직 시점 연금액'을 기준으로 해야 수치가 정상화됩니다.
-        const replacementRate = pensionAtRetire / ((salary + valA) / 2);
+
+        // 4. [이원화] 소득대체율 분모 보정
+        // 고연차는 제도 표준(A+B)/2, 저연차는 현재소득(B)에 가중치
+        const denom = isVested ? (salary + valA) / 2 : (salary * 0.8 + valA * 0.2);
+        const replacementRate = pensionAtRetire / denom;
         
         const breakEvenYears = (futureLumpSum / (pensionAtStart * 12)) * 1.15;
 
@@ -186,23 +217,30 @@ growthRates.forEach(r => {
         </div>`;
     });
 
+    // 5. 결과창 출력 (대상별 안내 문구 차별화)
+    const targetText = isVested ? "퇴직연금 수급권자" : "연금 미대상자(일시금 추정)";
+    
     document.getElementById("result").innerHTML = `
-        지급개시연령: <span class="highlight">${actualAge}세</span> ${early>0?`(정상 ${normalAge}세)`:''}<br>
+        분석 대상: <span class="highlight">${targetText}</span><br>
+        지급개시연령: <span class="highlight">${actualAge}세</span> ${early > 0 ? `(정상 ${normalAge}세)` : ''}<br>
         <div class="scenario" style="background:#fff3f3; border:1px solid #ffcccc;">
             <strong>[퇴직수당 비교]</strong><br>
-            현재: ${Math.round(currentBonus).toLocaleString()} 원 → <strong>정년(추정): <span class="highlight">${Math.round(futureBonus).toLocaleString()} 원</span></strong>
+            현재: ${Math.round(currentBonus).toLocaleString()} 원 →<br>
+            <strong>정년(추정): <span class="highlight">${Math.round(futureBonus).toLocaleString()} 원</span></strong>
         </div>
         <div class="scenario" style="background:#f3f9ff; border:1px solid #ccdfff;">
             <strong>[퇴직일시금 비교]</strong><br>
-            현재: ${Math.round(currentLumpSum).toLocaleString()} 원 → <strong>정년(추정): <span class="highlight">${Math.round(futureLumpSum).toLocaleString()} 원</span></strong>
+            현재: ${Math.round(currentLumpSum).toLocaleString()} 원 →<br> 
+            <strong>정년(추정): <span class="highlight">${Math.round(futureLumpSum).toLocaleString()} 원</span></strong>
         </div>
         <div style="margin-top:15px; font-weight:bold; color:#1f4e79;">▶ 정년퇴직 시 예상 연금 (현재가치 기준)</div>
         ${html}
         <div class="small">
-        * 재직기간은 정년까지 재직시 ${totalServiceYears.toFixed(1)}년으로 가정<br>
-        * 실질임금상승률(임금상승률-물가상승률)에 따라 현가화<br>
-        * Σ(연도별 기준소득월액×현가율×적용월수)/총월수<br>
-        ※ 본 결과는 입력된 데이터를 바탕으로 산출된 시뮬레이션 수치이며, 확정 급여는 퇴직 시 최종 재직 기간과 산정지수에 따라 재계산되므로 실제 수령액과는 상이할 수 있습니다.
+            * 재직기간은 정년까지 재직 시 ${totalServiceYears.toFixed(1)}년으로 가정(최대 36년 반영)<br>
+            * 실질임금상승률(임금상승률-물가상승률)로 현가화<br>
+            * Σ(연도별 기준소득월액 × 현가율 × 적용월수) / 총월수<br>
+            <br>
+            <strong>※ 본 결과는 입력된 데이터를 바탕으로 산출된 시뮬레이션 수치이며, 확정 급여는 퇴직 시 최종 재직기간과 산정지수에 따라 재계산되므로 실제 수령액과는 상이할 수 있습니다.</strong>
         </div>
     `;
 }
